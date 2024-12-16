@@ -4,3 +4,4 @@ build-essential
 libc6-dev
 libblas-dev
 liblapack-dev
+python3-distutils
