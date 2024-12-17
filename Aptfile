@@ -1,0 +1,5 @@
+libblas-dev
+liblapack-dev
+gfortran
+build-essential
+python3-distutils
