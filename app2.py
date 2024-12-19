@@ -1,19 +1,28 @@
+import os
 import tweepy
 import json
 import time
-# latest tweet reply
 
 # Load API credentials from JSON file
 with open("config.json", "r") as file:
     credentials = json.load(file)
 
-# Authenticate with Twitter API using OAuth 1.0a for write access
+# Authenticate with Twitter API using OAuth 1.0a for media upload
+auth = tweepy.OAuth1UserHandler(
+    consumer_key=credentials["API_KEY"],
+    consumer_secret=credentials["API_SECRET"],
+    access_token=credentials["ACCESS_TOKEN"],
+    access_token_secret=credentials["ACCESS_SECRET"]
+)
+api = tweepy.API(auth)  # For media uploads
+
+# Authenticate with Twitter API using Client for tweet posting
 client = tweepy.Client(
     bearer_token=credentials["BEARER_TOKEN"],
     consumer_key=credentials["API_KEY"],
     consumer_secret=credentials["API_SECRET"],
-    access_token=credentials["ACCESS_TOKEN"],  # Updated access token
-    access_token_secret=credentials["ACCESS_SECRET"]  # Updated access secret
+    access_token=credentials["ACCESS_TOKEN"],
+    access_token_secret=credentials["ACCESS_SECRET"]
 )
 
 # User to monitor
@@ -21,7 +30,6 @@ target_username = "elonmusk"  # Replace with target user's handle (no '@')
 
 # Keep track of the last tweet replied to
 last_tweet_id = None
-
 
 def get_user_id(username):
     """Fetch the user ID of the target username."""
@@ -37,7 +45,6 @@ def get_user_id(username):
     except Exception as e:
         print(f"Error fetching user ID: {e}")
         return None
-
 
 def check_new_posts(user_id):
     """Check for the latest original post and reply to it."""
@@ -58,10 +65,18 @@ def check_new_posts(user_id):
             tweet = tweets.data[0]  # Take the first tweet
             print(f"Replying to Tweet ID {tweet.id}: {tweet.text}")
             try:
-                # Post a reply to the tweet
+                # Path to your image in the root directory
+                image_path = os.path.join(os.getcwd(), "potatoman.png")  # Replace with your image filename
+
+                # Upload the image
+                media = api.media_upload(image_path)
+                print(f"Image uploaded with Media ID: {media.media_id_string}")
+
+                # Post a reply to the tweet with the image
                 response = client.create_tweet(
                     text="Elon Musk is a FUCKING potato #PotatoMusk",  # Customize your reply text
-                    in_reply_to_tweet_id=tweet.id
+                    in_reply_to_tweet_id=tweet.id,
+                    media_ids=[media.media_id_string]  # Attach the uploaded image
                 )
                 print(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
                 last_tweet_id = tweet.id  # Update last replied tweet ID
@@ -69,7 +84,6 @@ def check_new_posts(user_id):
                 print(f"Error sending reply: {e}")
     except Exception as e:
         print(f"Error fetching tweets: {e}")
-
 
 # Main Execution
 if __name__ == "__main__":
