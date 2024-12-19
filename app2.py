@@ -31,8 +31,8 @@ def get_user_id(username):
         return user.data.id
     except tweepy.TooManyRequests as e:
         print(f"Rate limit hit: {e}")
-        print("Waiting 15 minutes before retrying...")
-        time.sleep(15 * 60)  # Wait 15 minutes and retry
+        print("Waiting 2 hours before retrying...")
+        time.sleep(2 * 60 * 60)  # Wait 2 hours (2 hours * 60 minutes/hour * 60 seconds/minute)
         return get_user_id(username)
     except Exception as e:
         print(f"Error fetching user ID: {e}")
