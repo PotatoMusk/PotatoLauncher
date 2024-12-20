@@ -113,7 +113,7 @@ if __name__ == "__main__":
             print(f"Monitoring tweets for user ID {user_id}...")
             while True:
                 check_new_posts(user_id)
-                time.sleep(1 * 60 * 60)  # Check every 1 hour
+                time.sleep(4 * 60 * 60)  # Check every 1 hour
         else:
             print("Could not find the target user. Please check the username.")
     except KeyboardInterrupt:
