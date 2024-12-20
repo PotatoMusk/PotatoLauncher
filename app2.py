@@ -39,8 +39,8 @@ def get_user_id(username):
         return user.data.id
     except tweepy.TooManyRequests as e:
         print(f"Rate limit hit: {e}")
-        print("Waiting 2 hours before retrying...")
-        time.sleep(2 * 60 * 60)  # Wait 2 hours (2 hours * 60 minutes/hour * 60 seconds/minute)
+        print("Waiting 15 minutes before retrying...")
+        time.sleep(16 * 60)  # Wait 16 minutes (rate limit reset)
         return get_user_id(username)
     except Exception as e:
         print(f"Error fetching user ID: {e}")
@@ -82,6 +82,9 @@ def check_new_posts(user_id):
                 last_tweet_id = tweet.id  # Update last replied tweet ID
             except Exception as e:
                 print(f"Error sending reply: {e}")
+    except tweepy.TooManyRequests:
+        print("Rate limit reached. Backing off...")
+        time.sleep(16 * 60)  # Wait 16 minutes (rate limit reset)
     except Exception as e:
         print(f"Error fetching tweets: {e}")
 
@@ -89,13 +92,21 @@ def check_new_posts(user_id):
 if __name__ == "__main__":
     user_id = None
     try:
-        # Cache the user ID (fetch once)
-        user_id = get_user_id(target_username)
+        # Cache the user ID (fetch once or load from file)
+        if not os.path.exists("user_id_cache.txt"):
+            user_id = get_user_id(target_username)
+            if user_id:
+                with open("user_id_cache.txt", "w") as file:
+                    file.write(str(user_id))
+        else:
+            with open("user_id_cache.txt", "r") as file:
+                user_id = file.read().strip()
+
         if user_id:
             print(f"Monitoring tweets for user ID {user_id}...")
             while True:
                 check_new_posts(user_id)
-                time.sleep(60)  # Check every 60 seconds
+                time.sleep(1 * 60 * 60)  # Check every 1 hour
         else:
             print("Could not find the target user. Please check the username.")
     except KeyboardInterrupt:
