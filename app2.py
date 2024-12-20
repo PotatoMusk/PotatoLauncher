@@ -80,6 +80,13 @@ def check_new_posts(user_id):
                 )
                 print(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
                 last_tweet_id = tweet.id  # Update last replied tweet ID
+
+                # Send a tweet confirming the reply
+                confirmation_tweet = client.create_tweet(
+                    text=f"Elon Musk is a potato! #PotatoMusk {tweet.id}. Check it out!"
+                )
+                print(f"Confirmation tweet posted with ID {confirmation_tweet.data['id']}")
+
             except Exception as e:
                 print(f"Error sending reply: {e}")
     except tweepy.TooManyRequests:
