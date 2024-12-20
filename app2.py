@@ -81,9 +81,12 @@ def check_new_posts(user_id):
                 print(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
                 last_tweet_id = tweet.id  # Update last replied tweet ID
 
-                # Send a tweet confirming the reply
+                # Generate the link to the original tweet
+                tweet_link = f"https://twitter.com/{target_username}/status/{tweet.id}"
+
+                # Create the confirmation tweet with the link
                 confirmation_tweet = client.create_tweet(
-                    text=f"Elon Musk is a potato! #PotatoMusk {tweet.id}. Check it out!"
+                    text=f"Elon Musk is a potato! #PotatoMusk Check it out: {tweet_link}"
                 )
                 print(f"Confirmation tweet posted with ID {confirmation_tweet.data['id']}")
 
