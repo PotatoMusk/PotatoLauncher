@@ -4,6 +4,7 @@ import json
 import time
 from flask import Flask
 import threading
+import logging
 
 # Flask application setup
 app = Flask(__name__)
@@ -11,6 +12,10 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     return "The bot is running!"
+
+# Logging setup
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load API credentials from JSON file
 with open("config.json", "r") as file:
@@ -44,15 +49,15 @@ def get_user_id(username):
     """Fetch the user ID of the target username."""
     try:
         user = client.get_user(username=username)
-        print(f"Found user: {username}, ID: {user.data.id}")
+        logger.info(f"Found user: {username}, ID: {user.data.id}")
         return user.data.id
     except tweepy.TooManyRequests as e:
-        print(f"Rate limit hit: {e}")
-        print("Waiting 15 minutes before retrying...")
+        logger.error(f"Rate limit hit: {e}")
+        logger.info("Waiting 15 minutes before retrying...")
         time.sleep(16 * 60)  # Wait 16 minutes (rate limit reset)
         return get_user_id(username)
     except Exception as e:
-        print(f"Error fetching user ID: {e}")
+        logger.error(f"Error fetching user ID: {e}")
         return None
 
 def check_new_posts(user_id):
@@ -72,14 +77,14 @@ def check_new_posts(user_id):
         # Process only the first (latest) tweet
         if tweets and tweets.data:
             tweet = tweets.data[0]  # Take the first tweet
-            print(f"Replying to Tweet ID {tweet.id}: {tweet.text}")
+            logger.info(f"Replying to Tweet ID {tweet.id}: {tweet.text}")
             try:
                 # Path to your image in the root directory
                 image_path = os.path.join(os.getcwd(), "potatoman.png")  # Replace with your image filename
 
                 # Upload the image
                 media = api.media_upload(image_path)
-                print(f"Image uploaded with Media ID: {media.media_id_string}")
+                logger.info(f"Image uploaded with Media ID: {media.media_id_string}")
 
                 # Post a reply to the tweet with the image
                 response = client.create_tweet(
@@ -87,7 +92,7 @@ def check_new_posts(user_id):
                     in_reply_to_tweet_id=tweet.id,
                     media_ids=[media.media_id_string]  # Attach the uploaded image
                 )
-                print(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
+                logger.info(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
                 last_tweet_id = tweet.id  # Update last replied tweet ID
 
                 # Generate the link to the original tweet
@@ -97,18 +102,19 @@ def check_new_posts(user_id):
                 confirmation_tweet = client.create_tweet(
                     text=f"Elon Musk is a potato! #PotatoMusk Check it out: {tweet_link}"
                 )
-                print(f"Confirmation tweet posted with ID {confirmation_tweet.data['id']}")
+                logger.info(f"Confirmation tweet posted with ID {confirmation_tweet.data['id']}")
 
             except Exception as e:
-                print(f"Error sending reply: {e}")
+                logger.error(f"Error sending reply: {e}")
     except tweepy.TooManyRequests:
-        print("Rate limit reached. Backing off...")
+        logger.error("Rate limit reached. Backing off...")
         time.sleep(16 * 60)  # Wait 16 minutes (rate limit reset)
     except Exception as e:
-        print(f"Error fetching tweets: {e}")
+        logger.error(f"Error fetching tweets: {e}")
 
 def start_bot():
     """Start the bot logic in a separate thread."""
+    logger.info("Starting the bot...")
     user_id = None
     try:
         # Cache the user ID (fetch once or load from file)
@@ -122,14 +128,15 @@ def start_bot():
                 user_id = file.read().strip()
 
         if user_id:
-            print(f"Monitoring tweets for user ID {user_id}...")
+            logger.info(f"Monitoring tweets for user ID {user_id}...")
+            check_new_posts(user_id)  # Initial check
             while True:
+                time.sleep(30 * 60)
                 check_new_posts(user_id)
-                time.sleep(30 * 60)  # Wait for 30 minutes
         else:
-            print("Could not find the target user. Please check the username.")
-    except KeyboardInterrupt:
-        print("Bot stopped manually.")
+            logger.error("Could not find the target user. Please check the username.")
+    except Exception as e:
+        logger.error(f"Bot encountered an error: {e}")
 
 if __name__ == "__main__":
     # Run the bot in a separate thread
