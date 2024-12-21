@@ -56,7 +56,7 @@ def check_newest_tweet(user_id):
         # Fetch the newest tweet (latest by time)
         tweets = client.get_users_tweets(
             id=user_id,
-            max_results=1,  # Fetch only the newest tweet
+            max_results=5,  # Fetch only the newest tweet
             tweet_fields=["id", "text", "created_at"],
             exclude=["replies", "retweets"]  # Exclude replies and retweets
         )
