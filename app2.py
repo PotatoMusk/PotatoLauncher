@@ -2,6 +2,15 @@ import os
 import tweepy
 import json
 import time
+from flask import Flask
+import threading
+
+# Flask application setup
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "The bot is running!"
 
 # Load API credentials from JSON file
 with open("config.json", "r") as file:
@@ -98,8 +107,8 @@ def check_new_posts(user_id):
     except Exception as e:
         print(f"Error fetching tweets: {e}")
 
-# Main Execution
-if __name__ == "__main__":
+def start_bot():
+    """Start the bot logic in a separate thread."""
     user_id = None
     try:
         # Cache the user ID (fetch once or load from file)
@@ -120,4 +129,13 @@ if __name__ == "__main__":
         else:
             print("Could not find the target user. Please check the username.")
     except KeyboardInterrupt:
-        print("Script stopped manually.")
+        print("Bot stopped manually.")
+
+if __name__ == "__main__":
+    # Run the bot in a separate thread
+    bot_thread = threading.Thread(target=start_bot)
+    bot_thread.daemon = True
+    bot_thread.start()
+
+    # Run the Flask server
+    app.run(debug=True, host="0.0.0.0", port=5000)
