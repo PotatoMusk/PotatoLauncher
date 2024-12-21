@@ -2,16 +2,7 @@ import os
 import tweepy
 import json
 import time
-from flask import Flask
-import threading
 import logging
-
-# Flask application setup
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "The bot is running!"
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -112,37 +103,17 @@ def check_new_posts(user_id):
     except Exception as e:
         logger.error(f"Error fetching tweets: {e}")
 
-def start_bot():
-    """Start the bot logic in a separate thread."""
-    logger.info("Starting the bot...")
-    user_id = None
-    try:
-        # Cache the user ID (fetch once or load from file)
-        if not os.path.exists("user_id_cache.txt"):
-            user_id = get_user_id(target_username)
-            if user_id:
-                with open("user_id_cache.txt", "w") as file:
-                    file.write(str(user_id))
-        else:
-            with open("user_id_cache.txt", "r") as file:
-                user_id = file.read().strip()
+def run_bot():
+    """Continuously monitor and reply to tweets."""
+    logger.info("Bot started.")
+    user_id = get_user_id(target_username)
+    if not user_id:
+        logger.error("User ID could not be retrieved.")
+        return
 
-        if user_id:
-            logger.info(f"Monitoring tweets for user ID {user_id}...")
-            check_new_posts(user_id)  # Initial check
-            while True:
-                time.sleep(30 * 60)
-                check_new_posts(user_id)
-        else:
-            logger.error("Could not find the target user. Please check the username.")
-    except Exception as e:
-        logger.error(f"Bot encountered an error: {e}")
+    while True:
+        check_new_posts(user_id)
+        time.sleep(30 * 60)  # Check every 30 minutes
 
 if __name__ == "__main__":
-    # Run the bot in a separate thread
-    bot_thread = threading.Thread(target=start_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-
-    # Run the Flask server
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    run_bot()
