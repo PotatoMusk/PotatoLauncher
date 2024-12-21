@@ -36,6 +36,22 @@ target_username = "elonmusk"  # Replace with target user's handle (no '@')
 # Keep track of the last tweet replied to
 last_tweet_id = None
 
+
+def save_user_id(user_id, filename="user_id_cache.txt"):
+    """Save the user ID to a file."""
+    with open(filename, "w") as file:
+        file.write(str(user_id))
+
+
+def load_user_id(filename="user_id_cache.txt"):
+    """Load the user ID from a file."""
+    try:
+        with open(filename, "r") as file:
+            return int(file.read().strip())
+    except FileNotFoundError:
+        return None
+
+
 def get_user_id(username):
     """Fetch the user ID of the target username."""
     try:
@@ -43,13 +59,20 @@ def get_user_id(username):
         logger.info(f"Found user: {username}, ID: {user.data.id}")
         return user.data.id
     except tweepy.TooManyRequests as e:
-        wait_time = int(e.response.headers.get("x-rate-limit-reset", time.time())) - int(time.time())
+        # Use the rate limit reset header
+        reset_time = e.response.headers.get("x-rate-limit-reset")
+        if reset_time:
+            wait_time = int(reset_time) - int(time.time())
+        else:
+            wait_time = 15 * 60  # Default to 15 minutes if reset time is unavailable
+
         logger.error(f"Rate limit hit. Waiting {wait_time} seconds...")
-        time.sleep(wait_time + 1)
+        time.sleep(max(wait_time + 1, 1))  # Ensure wait time is positive
         return get_user_id(username)
     except Exception as e:
         logger.error(f"Error fetching user ID: {e}")
         return None
+
 
 def check_new_posts(user_id):
     """Check for the latest original post and reply to it."""
@@ -65,17 +88,6 @@ def check_new_posts(user_id):
             exclude=["replies", "retweets"]  # Exclude replies and retweets
         )
 
-        # Check remaining rate limit
-        rate_limit_remaining = int(tweets.headers.get("x-rate-limit-remaining", 1))
-        rate_limit_reset = int(tweets.headers.get("x-rate-limit-reset", time.time()))
-
-        if rate_limit_remaining == 0:
-            wait_time = rate_limit_reset - int(time.time())
-            logger.info(f"Rate limit reached. Waiting {wait_time} seconds...")
-            time.sleep(wait_time + 1)
-            return
-
-        # Process only the first (latest) tweet
         if tweets and tweets.data:
             tweet = tweets.data[0]  # Take the first tweet
             logger.info(f"Replying to Tweet ID {tweet.id}: {tweet.text}")
@@ -107,33 +119,37 @@ def check_new_posts(user_id):
 
             except Exception as e:
                 logger.error(f"Error sending reply: {e}")
-    except tweepy.TooManyRequests as e:
-        wait_time = int(e.response.headers.get("x-rate-limit-reset", time.time())) - int(time.time())
-        logger.error(f"Rate limit hit. Waiting {wait_time} seconds...")
-        time.sleep(wait_time + 1)
+    except tweepy.TooManyRequests:
+        logger.error("Rate limit hit. Waiting 15 minutes...")
+        time.sleep(15 * 60)  # Wait 15 minutes
     except Exception as e:
         logger.error(f"Error fetching tweets: {e}")
+
 
 def run_bot():
     """Continuously monitor and reply to tweets."""
     logger.info("Bot started.")
-    user_id = get_user_id(target_username)
+
+    # Try to load the user_id from cache
+    user_id = load_user_id()
     if not user_id:
-        logger.error("User ID could not be retrieved.")
-        return
+        # Fetch user_id if not cached
+        user_id = get_user_id(target_username)
+        if user_id:
+            save_user_id(user_id)  # Cache it
+        else:
+            logger.error("User ID could not be retrieved.")
+            return
 
     while True:
         try:
             check_new_posts(user_id)
-        except tweepy.TooManyRequests as e:
-            wait_time = int(e.response.headers.get("x-rate-limit-reset", time.time())) - int(time.time())
-            logger.error(f"Rate limit hit. Waiting {wait_time} seconds...")
-            time.sleep(wait_time + 1)
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
         finally:
             # Wait for 30 minutes (or adjust dynamically)
             time.sleep(30 * 60)
+
 
 if __name__ == "__main__":
     run_bot()
