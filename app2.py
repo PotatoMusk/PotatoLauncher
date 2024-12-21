@@ -43,9 +43,9 @@ def get_user_id(username):
         logger.info(f"Found user: {username}, ID: {user.data.id}")
         return user.data.id
     except tweepy.TooManyRequests as e:
-        logger.error(f"Rate limit hit: {e}")
-        logger.info("Waiting 15 minutes before retrying...")
-        time.sleep(16 * 60)  # Wait 16 minutes (rate limit reset)
+        wait_time = int(e.response.headers.get("x-rate-limit-reset", time.time())) - int(time.time())
+        logger.error(f"Rate limit hit. Waiting {wait_time} seconds...")
+        time.sleep(wait_time + 1)
         return get_user_id(username)
     except Exception as e:
         logger.error(f"Error fetching user ID: {e}")
@@ -56,7 +56,7 @@ def check_new_posts(user_id):
     global last_tweet_id
 
     try:
-        # Fetch up to 5 recent tweets (minimum valid value for max_results)
+        # Fetch up to 5 recent tweets
         tweets = client.get_users_tweets(
             id=user_id,
             since_id=last_tweet_id,
@@ -64,6 +64,16 @@ def check_new_posts(user_id):
             tweet_fields=["id", "text", "created_at"],
             exclude=["replies", "retweets"]  # Exclude replies and retweets
         )
+
+        # Check remaining rate limit
+        rate_limit_remaining = int(tweets.headers.get("x-rate-limit-remaining", 1))
+        rate_limit_reset = int(tweets.headers.get("x-rate-limit-reset", time.time()))
+
+        if rate_limit_remaining == 0:
+            wait_time = rate_limit_reset - int(time.time())
+            logger.info(f"Rate limit reached. Waiting {wait_time} seconds...")
+            time.sleep(wait_time + 1)
+            return
 
         # Process only the first (latest) tweet
         if tweets and tweets.data:
@@ -97,9 +107,10 @@ def check_new_posts(user_id):
 
             except Exception as e:
                 logger.error(f"Error sending reply: {e}")
-    except tweepy.TooManyRequests:
-        logger.error("Rate limit reached. Backing off...")
-        time.sleep(16 * 60)  # Wait 16 minutes (rate limit reset)
+    except tweepy.TooManyRequests as e:
+        wait_time = int(e.response.headers.get("x-rate-limit-reset", time.time())) - int(time.time())
+        logger.error(f"Rate limit hit. Waiting {wait_time} seconds...")
+        time.sleep(wait_time + 1)
     except Exception as e:
         logger.error(f"Error fetching tweets: {e}")
 
@@ -112,8 +123,17 @@ def run_bot():
         return
 
     while True:
-        check_new_posts(user_id)
-        time.sleep(30 * 60)  # Check every 30 minutes
+        try:
+            check_new_posts(user_id)
+        except tweepy.TooManyRequests as e:
+            wait_time = int(e.response.headers.get("x-rate-limit-reset", time.time())) - int(time.time())
+            logger.error(f"Rate limit hit. Waiting {wait_time} seconds...")
+            time.sleep(wait_time + 1)
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+        finally:
+            # Wait for 30 minutes (or adjust dynamically)
+            time.sleep(30 * 60)
 
 if __name__ == "__main__":
     run_bot()
