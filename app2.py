@@ -36,7 +36,6 @@ target_username = "elonmusk"  # Replace with target user's handle (no '@')
 # Keep track of the last tweet replied to
 last_tweet_id = None
 
-
 def get_user_id(username):
     """Fetch the user ID of the target username."""
     try:
@@ -46,7 +45,6 @@ def get_user_id(username):
     except Exception as e:
         logger.error(f"Error fetching user ID: {e}")
         return None
-
 
 def check_newest_tweet(user_id):
     """Fetch the newest tweet and process it if it's not a duplicate."""
@@ -84,17 +82,23 @@ def check_newest_tweet(user_id):
                 )
                 logger.info(f"Replied to Tweet ID {newest_tweet.id} with Reply ID {response.data['id']}")
 
+                # Send a standalone tweet with the same message and image
+                standalone_response = client.create_tweet(
+                    text="Elon Musk is a FUCKING potato #PotatoMusk (Also, here's proof!)",  # Customize the standalone text
+                    media_ids=[media.media_id_string]  # Attach the uploaded image
+                )
+                logger.info(f"Standalone Tweet ID {standalone_response.data['id']} posted.")
+
                 # Update the last_tweet_id to prevent duplication
                 last_tweet_id = newest_tweet.id
 
             except Exception as e:
-                logger.error(f"Error sending reply: {e}")
+                logger.error(f"Error sending reply or standalone tweet: {e}")
     except tweepy.TooManyRequests:
         logger.error("Rate limit hit. Waiting 15 minutes...")
         time.sleep(15 * 60)  # Wait 15 minutes
     except Exception as e:
         logger.error(f"Error fetching tweets: {e}")
-
 
 def run_bot():
     """Continuously monitor and reply to tweets."""
@@ -115,7 +119,6 @@ def run_bot():
         finally:
             # Wait for 1 hour (or adjust dynamically)
             time.sleep(1 * 60 * 60)
-
 
 if __name__ == "__main__":
     run_bot()
