@@ -87,7 +87,7 @@ def check_newest_tweet(user_id):
 
                 # Send a standalone tweet with the same message and link to the reply
                 standalone_response = client.create_tweet(
-                    text=f"Elon Musk is a FUCKING potato #PotatoMusk (Check it out! {reply_link})",
+                    text=f"Elon Musk is a FUCKING potato #PotatoMusk \n(Check it out! {reply_link})",
                     media_ids=[media.media_id_string]  # Attach the uploaded image
                 )
                 logger.info(f"Standalone Tweet ID {standalone_response.data['id']} posted.")
