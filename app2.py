@@ -82,9 +82,12 @@ def check_newest_tweet(user_id):
                 )
                 logger.info(f"Replied to Tweet ID {newest_tweet.id} with Reply ID {response.data['id']}")
 
-                # Send a standalone tweet with the same message and image
+                # Construct the link to the reply
+                reply_link = f"https://twitter.com/{target_username}/status/{response.data['id']}"
+
+                # Send a standalone tweet with the same message and link to the reply
                 standalone_response = client.create_tweet(
-                    text="Elon Musk is a FUCKING potato #PotatoMusk (Also, here's proof!)",  # Customize the standalone text
+                    text=f"Elon Musk is a FUCKING potato #PotatoMusk (Check it out! {reply_link})",
                     media_ids=[media.media_id_string]  # Attach the uploaded image
                 )
                 logger.info(f"Standalone Tweet ID {standalone_response.data['id']} posted.")
@@ -117,8 +120,8 @@ def run_bot():
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
         finally:
-            # Wait for 1 hour (or adjust dynamically)
-            time.sleep(1 * 60 * 60)
+            # Wait for 30 minutes (or adjust dynamically)
+            time.sleep(30 * 60)
 
 if __name__ == "__main__":
     run_bot()
