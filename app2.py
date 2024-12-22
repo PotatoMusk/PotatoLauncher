@@ -48,64 +48,9 @@ def get_user_id(username):
         return None
 
 
-def check_rate_limits():
-    """Check the bot's rate limits for key endpoints."""
-    try:
-        # Fetch rate limit status
-        rate_limit_status = api.rate_limit_status()
-
-        # Debug log for the full rate limit response
-        logger.debug(f"Full rate limit status response: {rate_limit_status}")
-
-        # Relevant endpoints
-        tweet_posting_limits = rate_limit_status["resources"]["statuses"].get("/statuses/update", None)
-        tweet_fetching_limits = rate_limit_status["resources"]["statuses"].get("/statuses/user_timeline", None)
-        media_upload_limits = rate_limit_status["resources"]["media"].get("/media/upload", None)
-
-        # Check for missing endpoints
-        if not tweet_posting_limits:
-            logger.warning("Could not retrieve rate limits for /statuses/update.")
-            return False
-        if not tweet_fetching_limits:
-            logger.warning("Could not retrieve rate limits for /statuses/user_timeline.")
-            return False
-        if not media_upload_limits:
-            logger.warning("Could not retrieve rate limits for /media/upload.")
-            return False
-
-        # Log the remaining limits
-        logger.info(f"Tweet Posting: {tweet_posting_limits['remaining']} remaining. Resets at {time.ctime(tweet_posting_limits['reset'])}.")
-        logger.info(f"Tweet Fetching: {tweet_fetching_limits['remaining']} remaining. Resets at {time.ctime(tweet_fetching_limits['reset'])}.")
-        logger.info(f"Media Upload: {media_upload_limits['remaining']} remaining. Resets at {time.ctime(media_upload_limits['reset'])}.")
-
-        # Check if any limits are hit
-        if tweet_posting_limits["remaining"] == 0:
-            logger.warning("Daily limit for posting tweets reached.")
-            return False
-        if tweet_fetching_limits["remaining"] == 0:
-            logger.warning("Daily limit for fetching tweets reached.")
-            return False
-        if media_upload_limits["remaining"] == 0:
-            logger.warning("Daily limit for media uploads reached.")
-            return False
-
-        return True  # All limits are within bounds
-    except KeyError as e:
-        logger.error(f"KeyError in rate limit status: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Error checking rate limits: {e}")
-        return False
-
-
 def check_newest_tweet(user_id):
     """Fetch the newest tweet and process it if it's not a duplicate."""
     global last_tweet_id
-
-    # Check rate limits before making the request
-    if not check_rate_limits():
-        logger.info("Rate limits reached. Skipping tweet check.")
-        return
 
     try:
         # Fetch the newest tweet (latest by time)
@@ -154,19 +99,22 @@ def check_newest_tweet(user_id):
 def run_bot():
     """Continuously monitor and reply to tweets."""
     logger.info("Bot started.")
+
+    # Fetch the user ID
     user_id = get_user_id(target_username)
     if not user_id:
         logger.error("User ID could not be retrieved.")
         return
 
+    # Main loop
     while True:
         try:
             check_newest_tweet(user_id)
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
         finally:
-            # Wait for 30 minutes (or adjust dynamically)
-            time.sleep(30 * 60)
+            # Wait for 1 hour (or adjust dynamically)
+            time.sleep(1 * 60 * 60)
 
 
 if __name__ == "__main__":
