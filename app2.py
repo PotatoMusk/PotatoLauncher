@@ -99,7 +99,7 @@ def check_newest_tweet(user_id):
                 logger.error(f"Error sending reply or standalone tweet: {e}")
     except tweepy.TooManyRequests:
         logger.error("Rate limit hit. Waiting 15 minutes...")
-        time.sleep(15 * 60)  # Wait 15 minutes
+        time.sleep(17 * 60)  # Wait 15 minutes
     except Exception as e:
         logger.error(f"Error fetching tweets: {e}")
 
@@ -121,7 +121,7 @@ def run_bot():
             logger.error(f"Unexpected error: {e}")
         finally:
             # Wait for 30 minutes (or adjust dynamically)
-            time.sleep(30 * 60)
+            time.sleep(40 * 60)
 
 if __name__ == "__main__":
     run_bot()
