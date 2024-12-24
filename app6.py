@@ -1,4 +1,3 @@
-import os
 import tweepy
 import json
 import time
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 with open("credentials.json", "r") as file:
     credentials = json.load(file)
 
-# Authenticate with Twitter API using Client
+# Authenticate with Twitter API using OAuth 2.0
 client = tweepy.Client(
     bearer_token=credentials["BEARER_TOKEN"],
     consumer_key=credentials["API_KEY"],
@@ -23,24 +22,14 @@ client = tweepy.Client(
 
 # User to monitor
 target_username = "elonmusk"  # Replace with target user's handle (no '@')
-LAST_TWEET_FILE = "last_tweet_id.txt"
 
-def load_last_tweet_id():
-    """Load the last tweet ID from a file."""
-    if os.path.exists(LAST_TWEET_FILE):
-        with open(LAST_TWEET_FILE, "r") as file:
-            return file.read().strip()
-    return None
+# Keep track of the last tweet replied to
+last_tweet_id = None
 
-def save_last_tweet_id(tweet_id):
-    """Save the last tweet ID to a file."""
-    with open(LAST_TWEET_FILE, "w") as file:
-        file.write(tweet_id)
-
-def fetch_user_id(username):
+def get_user_id(username):
     """Fetch the user ID of the target username."""
     try:
-        user = client.get_user(username=username)
+        user = client.get_user(username=username, user_auth=True)
         logger.info(f"Found user: {username}, ID: {user.data.id}")
         return user.data.id
     except Exception as e:
@@ -50,69 +39,76 @@ def fetch_user_id(username):
 def check_newest_tweet(user_id):
     """Fetch the newest tweet and process it if it's not a duplicate."""
     global last_tweet_id
-    last_tweet_id = load_last_tweet_id()
 
     try:
+        # Fetch up to 5 tweets from the target user
         tweets = client.get_users_tweets(
             id=user_id,
             max_results=5,
-            tweet_fields=["id", "text", "created_at"],
-            exclude=["retweets"]
+            tweet_fields=["id", "text", "created_at", "author_id"],
+            exclude=["replies", "retweets"],
+            user_auth=True
         )
 
-        if tweets is None or tweets.data is None or len(tweets.data) == 0:
-            logger.info("No tweets found.")
-            return
+        if tweets and tweets.data:
+            # Sort tweets by creation time to ensure the newest is processed
+            sorted_tweets = sorted(tweets.data, key=lambda x: x.created_at, reverse=True)
 
-        newest_tweet = tweets.data[0]
-        if newest_tweet.id == last_tweet_id:
-            logger.info("No new tweet to process.")
-            return
+            for tweet in sorted_tweets:
+                # Skip if the tweet was already processed
+                if tweet.id == last_tweet_id:
+                    logger.info("No new tweet to process.")
+                    return
 
-        logger.info(f"Processing newest tweet ID {newest_tweet.id}: {newest_tweet.text}")
+                logger.info(f"Processing newest tweet ID {tweet.id}: {tweet.text}")
 
-        # Post a reply to the tweet
-        reply_text = "Elon Musk is a FUCKING potato #PotatoMusk"
-        response = client.create_tweet(
-            text=reply_text,
-            in_reply_to_tweet_id=newest_tweet.id
-        )
-        logger.info(f"Replied to Tweet ID {newest_tweet.id} with Reply ID {response.data['id']}")
+                # Post a reply to the tweet
+                try:
+                    response = client.create_tweet(
+                        text="Elon Musk is a potato! #PotatoMusk\n@potato_musk",
+                        in_reply_to_tweet_id=tweet.id,
+                        user_auth=True
+                    )
+                    logger.info(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
 
-        # Save the last tweet ID
-        save_last_tweet_id(newest_tweet.id)
+                    # Retweet the bot's own reply
+                    client.retweet(response.data['id'], user_auth=True)
+                    logger.info(f"Retweeted Reply ID {response.data['id']}")
 
-    except tweepy.errors.TooManyRequests:
-        handle_rate_limit()
+                    # Update the last_tweet_id to the original tweet ID
+                    last_tweet_id = tweet.id
+                    break  # Process only the newest tweet
+
+                except tweepy.errors.Forbidden as e:
+                    logger.error(f"Tweet not allowed (403): {e}")
+                except Exception as e:
+                    logger.error(f"Error sending reply or retweeting: {e}")
+    except tweepy.TooManyRequests:
+        logger.error("Rate limit hit. Waiting 24 hours...")
+        time.sleep(24 * 60 * 60)  # 24 hours in seconds
     except Exception as e:
-        logger.error(f"Error fetching or replying to tweets: {e}")
-
-def handle_rate_limit():
-    """Handle rate limit by sleeping until the reset time."""
-    reset_time = int(time.time()) + 15 * 60  # Default 15 minutes
-    try:
-        reset_time = int(client.rate_limit_status()["x-rate-limit-reset"])
-    except Exception as e:
-        logger.warning(f"Could not fetch rate limit reset time: {e}")
-    wait_time = reset_time - int(time.time())
-    logger.warning(f"Rate limit hit. Waiting {wait_time} seconds...")
-    time.sleep(max(wait_time, 60))
+        logger.error(f"Error fetching tweets: {e}")
 
 def run_bot():
     """Continuously monitor and reply to tweets."""
     logger.info("Bot started.")
-    user_id = fetch_user_id(target_username)
+
+    # Fetch the user ID
+    user_id = get_user_id(target_username)
     if not user_id:
-        logger.error("User ID could not be retrieved. Exiting.")
+        logger.error("User ID could not be retrieved.")
         return
 
+    # Main loop
     while True:
         try:
             check_newest_tweet(user_id)
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
         finally:
-            time.sleep(432 * 60) # 7 hours and 12 minutes between requests
+            # Wait for 24 hours between checks
+            logger.info("Sleeping for 24 hours")
+            time.sleep(24 * 60 * 60)  # 24 hours in seconds
 
 if __name__ == "__main__":
     run_bot()
