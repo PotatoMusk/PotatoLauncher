@@ -21,7 +21,7 @@ client = tweepy.Client(
 )
 
 # User to monitor
-target_username = "elonmusk"  # Replace with target user's handle (no '@')
+target_username = "potato_musk"  # Replace with target user's handle (no '@')
 
 # Keep track of the last tweet replied to
 last_tweet_id = None
