@@ -29,10 +29,10 @@ last_tweet_id = None
 def get_user_id(username):
     """Fetch the user ID of the target username."""
     try:
-        user = client.get_user(username=username, user_auth=True)
+        user = client.get_user(username=username)
         logger.info(f"Found user: {username}, ID: {user.data.id}")
         return user.data.id
-    except Exception as e:
+    except tweepy.errors.TweepyException as e:
         logger.error(f"Error fetching user ID: {e}")
         return None
 
@@ -45,9 +45,8 @@ def check_newest_tweet(user_id):
         tweets = client.get_users_tweets(
             id=user_id,
             max_results=5,
-            tweet_fields=["id", "text", "created_at", "author_id"],
-            exclude=["replies", "retweets"],
-            user_auth=True
+            tweet_fields=["id", "text", "created_at"],
+            exclude=["replies", "retweets"]
         )
 
         if tweets and tweets.data:
@@ -66,13 +65,12 @@ def check_newest_tweet(user_id):
                 try:
                     response = client.create_tweet(
                         text="Elon Musk is a potato! #PotatoMusk\n@potato_musk",
-                        in_reply_to_tweet_id=tweet.id,
-                        user_auth=True
+                        in_reply_to_tweet_id=tweet.id
                     )
                     logger.info(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
 
                     # Retweet the bot's own reply
-                    client.retweet(response.data['id'], user_auth=True)
+                    client.retweet(response.data['id'])
                     logger.info(f"Retweeted Reply ID {response.data['id']}")
 
                     # Update the last_tweet_id to the original tweet ID
@@ -81,12 +79,12 @@ def check_newest_tweet(user_id):
 
                 except tweepy.errors.Forbidden as e:
                     logger.error(f"Tweet not allowed (403): {e}")
-                except Exception as e:
+                except tweepy.errors.TweepyException as e:
                     logger.error(f"Error sending reply or retweeting: {e}")
-    except tweepy.TooManyRequests:
-        logger.error("Rate limit hit. Waiting 24 hours...")
+    except tweepy.errors.TooManyRequests as e:
+        logger.error("Rate limit hit. Sleeping for 24 hours...")
         time.sleep(24 * 60 * 60)  # 24 hours in seconds
-    except Exception as e:
+    except tweepy.errors.TweepyException as e:
         logger.error(f"Error fetching tweets: {e}")
 
 def run_bot():
