@@ -2,6 +2,10 @@ import os
 import tweepy
 import time
 import logging
+import warnings
+
+# Suppress SyntaxWarnings to avoid cluttering logs
+warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +43,8 @@ def get_user_id(username):
         return user.data.id
     except tweepy.errors.TweepyException as e:
         logger.error(f"Error fetching user ID: {e}")
+        if hasattr(e, 'response'):
+            logger.error(f"API Response: {e.response.json()}")
         return None
 
 def check_newest_tweet(user_id):
@@ -98,13 +104,22 @@ def run_bot():
 
     # Fetch the user ID
     user_id = get_user_id(target_username)
+    logger.info(f"User ID retrieval result: {user_id}")  # Log the result for debugging
     if not user_id:
         logger.error("User ID could not be retrieved.")
         return
 
+    logger.info("Entering main loop")
     # Main loop
     while True:
         try:
             check_newest_tweet(user_id)
         except Exception as e:
-            logger.error
+            logger.error(f"Unexpected error: {e}")
+        finally:
+            # Wait for 24 hours between checks
+            logger.info("Sleeping for 24 hours")
+            time.sleep(24 * 60 * 60)  # 24 hours in seconds
+
+if __name__ == "__main__":
+    run_bot()
