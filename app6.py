@@ -1,5 +1,5 @@
+import os
 import tweepy
-import json
 import time
 import logging
 
@@ -7,9 +7,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load API credentials from JSON file
-with open("credentials.json", "r") as file:
-    credentials = json.load(file)
+# Load credentials from environment variables
+credentials = {
+    "BEARER_TOKEN": os.getenv("BEARER_TOKEN"),
+    "API_KEY": os.getenv("API_KEY"),
+    "API_SECRET": os.getenv("API_SECRET"),
+    "ACCESS_TOKEN": os.getenv("ACCESS_TOKEN"),
+    "ACCESS_SECRET": os.getenv("ACCESS_SECRET"),
+}
 
 # Authenticate with Twitter API using OAuth 2.0
 client = tweepy.Client(
@@ -21,7 +26,7 @@ client = tweepy.Client(
 )
 
 # User to monitor
-target_username = "potato_musk"  # Replace with target user's handle (no '@')
+target_username = "elonmusk"  # Replace with target user's handle (no '@')
 
 # Keep track of the last tweet replied to
 last_tweet_id = None
@@ -102,11 +107,4 @@ def run_bot():
         try:
             check_newest_tweet(user_id)
         except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-        finally:
-            # Wait for 24 hours between checks
-            logger.info("Sleeping for 24 hours")
-            time.sleep(24 * 60 * 60)  # 24 hours in seconds
-
-if __name__ == "__main__":
-    run_bot()
+            logger.error
