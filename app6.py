@@ -64,7 +64,7 @@ def check_newest_tweet(user_id):
                 # Post a reply to the tweet
                 try:
                     response = client.create_tweet(
-                        text="Elon Musk is a potato! #PotatoMusk\n@potato_musk",
+                        text="Elon Musk is a potato! #PotatoMusk  @potato_musk",
                         in_reply_to_tweet_id=tweet.id
                     )
                     logger.info(f"Replied to Tweet ID {tweet.id} with Reply ID {response.data['id']}")
